@@ -93,6 +93,9 @@ cd crud-go
 ```
 O servidor será iniciado na porta 8000.
 
+**Caso deseje utilizar o front que eu desenvolvi para esse projeto acesse:
+https://github.com/Nero-o/React-auth-Go-project-**
+
 Agora você pode acessar as rotas do projeto localmente usando um cliente HTTP, como o cURL ou o Postman, para testar as funcionalidades do projeto. Por exemplo, você pode registrar um novo usuário, fazer login, obter informações do usuário e fazer logout. Certifique-se de ajustar as URLs de acordo com a porta e o host local em que o servidor está sendo executado.
 ## Contribuição
 Para contribuir com o projeto, siga as seguintes etapas:
