@@ -6,7 +6,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -19,10 +21,28 @@ func Register(c *fiber.Ctx) error {
 		return err
 	}
 
+	if data["password"] != data["confirmPassword"] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "As senhas não coincidem"})
+	}
+
+	if !isEmailValid(data["email"]) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "O e-mail não é válido"})
+	}
+
+	existingUser := models.User{}
+	database.DB.Where("email = ?", data["email"]).First(&existingUser)
+	if existingUser.Id != 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Usuário já cadastrado"})
+	}
+
+	if !isPasswordValid(data["password"]) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "A senha deve conter no mínimo 6 caracteres, uma letra maiúscula, uma letra minúscula, um número e um caracter especial"})
+	}
+
 	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
 
 	user := models.User{
-		Name:     data["name"],
+		UserName: data["username"],
 		Email:    data["email"],
 		Password: password,
 	}
@@ -30,6 +50,36 @@ func Register(c *fiber.Ctx) error {
 	database.DB.Create(&user)
 
 	return c.JSON(user)
+}
+
+func isEmailValid(email string) bool {
+	re := regexp.MustCompile(`^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`)
+	return re.MatchString(email)
+}
+
+func isPasswordValid(password string) bool {
+	if len(password) < 6 {
+		return false
+	}
+
+	if !strings.ContainsAny(password, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+		return false
+	}
+
+	if !strings.ContainsAny(password, "abcdefghijklmnopqrstuvwxyz") {
+		return false
+	}
+
+	if matched, _ := regexp.MatchString(`[0-9]`, password); !matched {
+		return false
+	}
+
+	re := regexp.MustCompile(`[!@#$%^&*(),.?":{}|<>]`)
+	if !re.MatchString(password) {
+		return false
+	}
+
+	return true
 }
 
 func Login(c *fiber.Ctx) error {
@@ -46,14 +96,14 @@ func Login(c *fiber.Ctx) error {
 	if user.Id == 0 {
 		c.Status(fiber.StatusNotFound)
 		return c.JSON(fiber.Map{
-			"message": "user not found",
+			"message": "usuário não encontrado",
 		})
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"])); err != nil {
 		c.Status(fiber.StatusBadRequest)
 		return c.JSON(fiber.Map{
-			"message": "incorrect password",
+			"message": "senha incorreta",
 		})
 	}
 
@@ -67,7 +117,7 @@ func Login(c *fiber.Ctx) error {
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError)
 		return c.JSON(fiber.Map{
-			"message": "could not login",
+			"message": "não foi possivel realizar o login",
 		})
 	}
 
@@ -81,7 +131,7 @@ func Login(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(fiber.Map{
-		"message": "success",
+		"message": "sucesso",
 	})
 }
 
@@ -95,7 +145,7 @@ func User(c *fiber.Ctx) error {
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
-			"message": "unauthenticated",
+			"message": "acesso negado",
 		})
 	}
 
@@ -119,6 +169,6 @@ func Logout(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(fiber.Map{
-		"message": "success",
+		"message": "sucesso",
 	})
 }

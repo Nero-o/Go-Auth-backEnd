@@ -3,6 +3,7 @@ package main
 import (
 	"crud_go/database"
 	"crud_go/routes"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"log"
@@ -17,8 +18,14 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000",
 		AllowCredentials: true,
 	}))
+
+	app.Use(func(c *fiber.Ctx) error {
+		fmt.Println("CORS Config:", c.Response().Header.Peek("Access-Control-Allow-Origin"))
+		return c.Next()
+	})
 
 	routes.Setup(app)
 
