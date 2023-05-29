@@ -145,11 +145,42 @@ func User(c *fiber.Ctx) error {
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
-			"message": "acesso negado",
+			"message": "Acesso negado: token inválido",
 		})
 	}
 
-	claims := token.Claims.(*jwt.StandardClaims)
+	claims, ok := token.Claims.(*jwt.StandardClaims)
+	if !ok || !token.Valid {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Acesso negado: token inválido",
+		})
+	}
+
+	// Verificar se o token expirou
+	if time.Now().Unix() > claims.ExpiresAt {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Acesso negado: token expirado",
+		})
+	}
+
+	claims.ExpiresAt = time.Now().Add(30 * time.Minute).Unix()
+
+	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	newTokenString, err := newToken.SignedString([]byte(SecretKey))
+	if err != nil {
+		c.Status(fiber.StatusInternalServerError)
+		return c.JSON(fiber.Map{
+			"message": "Erro ao gerar o novo token",
+		})
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:    "jwt",
+		Value:   newTokenString,
+		Expires: time.Now().Add(30 * time.Minute),
+	})
 
 	var user models.User
 
